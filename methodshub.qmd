@@ -1,0 +1,186 @@
+# Sexism Custom Classifier
+
+## Description
+<!--
+1. Provide a brief and exact description of the method clearly mentioning its purpose i.e., what the method does or aims to achieve in abstract terms (avoiding technical details).
+2. The focus should be on explaining the method in a way that helps users with different levels of expertise understand what it does, without going into technical details. It should clearly describe what inputs are needed and what outputs can be expected.
+3. Briefly explain the input and output of the method and its note worthy features.
+4. Provide link(s) to related papers from the social science domain using the method or similar methods for solving social science research questions. 
+5. In a separate paragraph, highlight the reproducibility aspect of the method providing details or references to the resources used by the method, the data used in building the pre-trained modules etc.
+6. It should also discuss the decisions and parameters controlling the behavior of the method.
+-->
+
+The `sexism_custom_classifier` is a pipeline for training and evaluating machine learning models to detect sexist language.  
+It allows experiments with multiple models and combinations of features to address two research questions:
+
+1. What is the informativeness of different feature sets on the sexism detection task?
+2. What are the improvements in classifier performance when different feature sets are introduced?
+
+The method takes a dataset of text labeled as `sexist` or `nonsexist` and produces classification metrics.  
+It supports training on specific domains and testing on others.
+
+Key features:
+- Configurable feature sets including sentiment, n-grams, dependency types, and document embeddings.
+- Support for multiple models (Logistic Regression, SVM, CNN, GenderWord, ThresholdClassifier).
+- Parameterized training via JSON configuration files.
+- Option to perform grid search over hyperparameters.
+
+The method is implemented in Python and uses scikit-learn pipelines.  
+Reproducibility is supported via fixed parameter/hyperparameter files and deterministic train/test splitting.
+
+## Use Cases
+<!--
+1. The use cases section should contain a list of use cases relevant to the social sciences.
+2. Each use case should start with a description of a task and then detail how one can use the method to assist in the task.
+3. Each use case may list publications in which the use case occurs (e.g., in APA7 style, https://apastyle.apa.org/style-grammar-guidelines/references/examples).
+-->
+
+- **Detecting sexist language in text data**  
+  Researchers can use the classifier to analyze corpora—like social media posts or forums—to quantify sexist content and inform policy or research.
+
+- **Comparing feature informativeness**  
+  By varying sentiment, n-gram, syntactic dependency, and embedding features, social scientists can understand which signals contribute most to the detection of sexist language.
+
+- **Cross-domain evaluation**  
+  Enables training on one domain (e.g., news) and testing on another (e.g., social media), helping to assess model robustness and generalizability.
+
+## Input Data
+<!--
+1. The input data section should illustrate the input data format by showing a (possibly abbreviated) example item and explaining (or linking to an explanation of) the data fields.
+2. The input data section should specify which parts of the input data are optional and what effect it has to not provide these.
+3. The input data section should link to a small example input file in the same repository that can be used to test the method (this test should be described in the section "How to Use").
+-->
+
+The method expects:
+- A labeled dataset including **Text** content and a **Label** (`sexist`, `nonsexist`).
+- Domain split definitions and settings in the [`params.json`](https://github.com/gesiscss/sexism_custom_classifier/blob/master/experiments/params.json).
+- Feature definitions and hyperparameter grids in the [`hyperparams.json`](https://github.com/gesiscss/sexism_custom_classifier/blob/master/experiments/hyperparams.json).
+
+## Output Data
+<!--
+1. The output data section should illustrate the output data format by showing a (possibly abbreviated) example item and explaining (or linking to an explanation of) the data fields.
+2. The output data section should link to a small example output file in the same repository that can be re-created (as far as the method is non-random) from the input data (as described in the section "How to Use").
+-->
+
+Outputs include:
+- A pickled DataFrame containing:
+  - Iteration, train/test domains
+  - Model name, feature combination, feature dimensions
+  - Parameter grid and best parameters
+  - True and predicted labels
+  - Classification metrics (precision, recall, f1 for each label, and macro average)
+
+Example output pattern:  
+`experiments/results_<timestamp>_<iteration>.pkl` (generated during execution; see code).
+
+## Hardware Requirements
+<!--
+1. The hardware requirements section should list all requirements ...
+2. If the method requires a GPU ...
+-->
+
+- Requires **Python ≥ 3.7.8, < 4.0**
+- CPU execution is supported; a **GPU** may speed up CNN training via TensorFlow.
+
+## Environment Setup
+<!--
+1. The environment setup section should list all requirements ...
+2. Recommend using virtual environment ...
+-->
+
+1. Create and activate a virtual environment (recommended):
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. Install the package:
+   ```bash
+   pip install .
+   ```
+
+3. Or manually install dependencies:
+   ```bash
+   pip install pandas scikit-learn nltk ipywidgets tensorflow transformers spacy bs4 unidecode emoji
+   ```
+
+4. Download required NLTK assets:
+   ```python
+   import nltk
+   nltk.download('vader_lexicon')
+   nltk.download('stopwords')
+   ```
+
+## How to Use
+<!--
+1. Provide steps to reproduce example output ...
+2. Explain how to customize ...
+-->
+
+```
+# Example: Running the pipeline with defined configs
+
+export PARAMS_FILE='experiments/params.json'
+export HYPERPARAMS_FILE='experiments/hyperparams.json'
+
+python run.py \
+  --params_file=$PARAMS_FILE \
+  --hyperparams_file=$HYPERPARAMS_FILE \
+  --file_name=example_run
+```
+
+Pipeline workflow:
+1. Load JSON parameters.
+2. Preprocess dataset.
+3. Generate domain-based train/test splits.
+4. Configure and build the feature-model pipeline.
+5. Train model (grid search if enabled).
+6. Predict and evaluate on test sets.
+7. Save resulting metrics and outputs.
+
+## Technical Details
+<!--
+1. Provide process overview linking code files ...
+2. Mention reproduction details and model selection ...
+-->
+
+Pipeline entrypoint: [`src/run.py`](https://github.com/gesiscss/sexism_custom_classifier/blob/master/src/run.py)
+
+- **Data preparation** via [`MakeDataset`](https://github.com/gesiscss/sexism_custom_classifier/blob/master/src/data/make_dataset.py)
+- **Pipeline assembly** via [`PipelineBuilder`](https://github.com/gesiscss/sexism_custom_classifier/blob/master/src/builder/pipeline_builder.py)
+- **Modeling** based on:
+  - Sentiment (VADER)
+  - Word n-grams (TF-IDF)
+  - Dependency types (Stanford Parser)
+  - Document embeddings (BERT)
+- **Models available**:
+  - Logistic Regression (LR)
+  - Support Vector Machine (SVM)
+  - Convolutional Neural Network (CNN)
+  - GenderWord
+  - ThresholdClassifier
+- Evaluation wrapped in cross-validation and grid search (via `GridSearchCV`).
+
+<!--
+## References
+1. Optional—cite relevant publications ...
+-->
+
+<!--
+## Acknowledgements
+1. Optional acknowledgments ...
+-->
+
+## Disclaimer
+<!--
+1. Optional disclaimer ...
+-->
+
+Intended for academic research. Users must ensure ethical and legal compliance.
+
+## Contact Details
+<!--
+1. Provide contact or issue channels ...
+-->
+In case of questions, contact [Elif Alkac](mailto:daldalelif88@gmail.com).
+Issue Tracker: [https://github.com/gesiscss/sexism_custom_classifier/issues](https://github.com/gesiscss/sexism_custom_classifier/issues)
